@@ -128,12 +128,16 @@ zipcwm <- function(X, Z, Y,
       z_h2 <- z_hat_2_list[, k]
       for(s in 1:irls_max_iter) {
         mu_curr <- exp(X_in %*% beta_k[, k])
+        
         W_beta <- as.vector(W_k * z_h2 * mu_curr)
         W_beta <- pmax(W_beta, 1e-10)
+        
         score_b <- t(X_in) %*% (W_k * z_h2 * (Y - mu_curr))
         info_b  <- t(X_in) %*% (W_beta * X_in)
-        step_b <- solve(info_b + diag(1e-8, Pin_x)) %*% score_b
+        
+        step_b <- MASS::ginv(info_b + diag(1e-8, Pin_x)) %*% score_b
         beta_k[, k] <- beta_k[, k] + as.vector(step_b)
+        
         if(max(abs(step_b)) < 1e-6) break
       }
       
@@ -141,12 +145,16 @@ zipcwm <- function(X, Z, Y,
       z_h1 <- 1 - z_h2
       for(s in 1:irls_max_iter) {
         pi_curr <- 1 / (1 + exp(-(Z_in %*% gamma_k[, k])))
+        
         W_gamma <- as.vector(W_k * pi_curr * (1 - pi_curr))
         W_gamma <- pmax(W_gamma, 1e-10)
+        
         score_g <- t(Z_in) %*% (W_k * (z_h1 - pi_curr))
         info_g  <- t(Z_in) %*% (W_gamma * Z_in)
-        step_g <- solve(info_g + diag(1e-8, Pin_z)) %*% score_g
+        
+        step_g <- MASS::ginv(info_g + diag(1e-8, Pin_z)) %*% score_g
         gamma_k[, k] <- gamma_k[, k] + as.vector(step_g)
+        
         if(max(abs(step_g)) < 1e-6) break
       }
     }
@@ -156,6 +164,7 @@ zipcwm <- function(X, Z, Y,
               beta = beta_k, gamma = gamma_k, loglik = ll_history,
               init_method = init_method))
 }
+
 
 
 

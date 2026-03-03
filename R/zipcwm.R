@@ -24,8 +24,6 @@ zipcwm <- function(X, Z, Y,
   Pin_z <- ncol(Z_in)
   
   # # combination of covariates X and Z
-  # 안전한 방법 (열 이름이 반드시 있다고 가정하거나 고유한 열만 병합)
-  # 만약 X와 Z의 컬럼을 그대로 합치고 중복만 제거한다면:
   All_Covariates <- X
   for (i in 1:ncol(Z)) {
   if (!any(apply(X, 2, function(x) identical(x, Z[, i])))) {
@@ -68,8 +66,13 @@ zipcwm <- function(X, Z, Y,
     mu_k[[k]] <- colMeans(All_Covariates[idx, , drop=FALSE])
     sigma_k[[k]] <- cov(All_Covariates[idx, , drop=FALSE]) + diag(1e-5, Pall)
     
-    beta_k[, k]  <- coef(glm(Y[idx] ~ X[idx, ], family = poisson))
-    gamma_k[, k] <- coef(glm(as.numeric(Y[idx] == 0) ~ Z[idx, ], family = binomial))
+    # 차원 축소 방지
+    beta_k[, k]  <- coef(glm(Y[idx] ~ X[idx, , drop=FALSE], family = poisson))
+    gamma_k[, k] <- coef(glm(as.numeric(Y[idx] == 0) ~ Z[idx, , drop=FALSE], family = binomial))
+
+    # NA 발생 시 0으로 대체
+    beta_k[is.na(beta_k[, k]), k] <- 0
+    gamma_k[is.na(gamma_k[, k]), k] <- 0
   }
   
   ll_history <- numeric()
@@ -86,12 +89,15 @@ zipcwm <- function(X, Z, Y,
     for(k in 1:K) {
       f_covs <- dmvnorm(All_Covariates, mean = mu_k[[k]], sigma = sigma_k[[k]]) # phi_p(x;mu_k, sigma_k)
       
-      mu_y <- exp(X_in %*% beta_k[, k])
-      pi_inv <- 1 / (1 + exp(-(Z_in %*% gamma_k[, k])))
+      mu_y <- as.vector(exp(X_in %*% beta_k[, k]))
+      pi_inv <- as.vector(1 / (1 + exp(-(Z_in %*% gamma_k[, k]))))
       
-      f_y_zip <- ifelse(Y == 0, # phi_1(y; beta_k, gamma_k)
-                        pi_inv + (1 - pi_inv) * exp(-mu_y),
-                        (1 - pi_inv) * (exp(-mu_y) * mu_y^Y / (factorial(Y) + 1e-15)))
+    # 0이 아닌 경우의 기본 Poisson 계산
+    f_y_zip <- (1 - pi_inv_vec) * dpois(Y, lambda = mu_y_vec)
+
+    # Y가 0인 경우 Zero-inflation 계산
+    f_y_zip[Y == 0] <- pi_inv_vec[Y == 0] + f_y_zip[Y == 0]
+    f_y_zip <- pmax(f_y_zip, 1e-15)
       
       tau[, k] <- pi_k[k] * f_covs * f_y_zip # 분자 : pi_k * phi_p * phi_1
       
@@ -150,5 +156,6 @@ zipcwm <- function(X, Z, Y,
               beta = beta_k, gamma = gamma_k, loglik = ll_history,
               init_method = init_method))
 }
+
 
 

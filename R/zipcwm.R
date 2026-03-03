@@ -31,7 +31,7 @@ zipcwm <- function(X, Z, Y,
     }
   }
   Pall <- ncol(All_Covariates)
-  init_data <- All_Covariates
+  init_data <- cbind(All_Covariates, Y)
   
   # ------------------------------------------------------------
   # initialization(K=2)
@@ -164,6 +164,7 @@ zipcwm <- function(X, Z, Y,
               beta = beta_k, gamma = gamma_k, loglik = ll_history,
               init_method = init_method))
 }
+
 
 
 

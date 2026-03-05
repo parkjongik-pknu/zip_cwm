@@ -1,5 +1,6 @@
 # ============================================================
 # zip_cwm.R
+# k=2 고정
 # ============================================================
 
 
@@ -162,6 +163,7 @@ zipcwm <- function(X, Z, Y,
               beta = beta_k, gamma = gamma_k, loglik = ll_history,
               init_method = init_method))
 }
+
 
 
 
